@@ -1,0 +1,35 @@
+PODS:
+  - AmazonIVSBroadcast/Stages (1.36.0)
+  - aws_ivs_realtime (0.1.0):
+    - AmazonIVSBroadcast/Stages (~> 1.36.0)
+    - Flutter
+  - Flutter (1.0.0)
+  - permission_handler_apple (9.3.0):
+    - Flutter
+
+DEPENDENCIES:
+  - aws_ivs_realtime (from `.symlinks/plugins/aws_ivs_realtime/ios`)
+  - Flutter (from `Flutter`)
+  - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
+
+SPEC REPOS:
+  trunk:
+    - AmazonIVSBroadcast
+
+EXTERNAL SOURCES:
+  aws_ivs_realtime:
+    :path: ".symlinks/plugins/aws_ivs_realtime/ios"
+  Flutter:
+    :path: Flutter
+  permission_handler_apple:
+    :path: ".symlinks/plugins/permission_handler_apple/ios"
+
+SPEC CHECKSUMS:
+  AmazonIVSBroadcast: b76ac7519bd77e4815f9e36eb08a70f4ec11488c
+  aws_ivs_realtime: 6ee97b8329d4a6c75749da57a0d66f93997f2a97
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2
+
+PODFILE CHECKSUM: 5c465383494220ad7fae3607f98a6542d3f3039c
+
+COCOAPODS: 1.16.2

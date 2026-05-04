@@ -1,0 +1,27 @@
+---
+description: AWS IVS Real-Time (Stages) Flutter plugin — architecture and key files
+alwaysApply: true
+---
+
+# aws_ivs_realtime (Cursor context)
+
+This repo is a **Flutter plugin** for **Amazon IVS Real-Time (Stages)** on **Android** and **iOS**: native stage grid (MethodChannel + platform view), optional SigV4 control plane, IVS Chat WebSocket helpers.
+
+## Read first
+
+- `README.md` — install, permissions, `IvsRealtimePlatform` / `join` / view type, example app location.
+- `DOCUMENTATION.md` — architecture, channel contract, token flow, troubleshooting (may mention legacy paths; plugin uses `AwsIvsRealtimePlugin` and channel **`aws_ivs_realtime/stage`**).
+
+## Implementation map
+
+- **Dart API:** `lib/` — e.g. `ivs_live_control_plane.dart`, platform facade, chat session.
+- **Runnable demo:** `example/` (lobby, full-screen live, chat; SigV4 vs backend control plane).
+- **Android:** plugin package `dev.aws.ivs_realtime`, class `AwsIvsRealtimePlugin`; align with `ivs-broadcast` stages AAR version in Gradle.
+- **iOS:** `AwsIvsRealtimePlugin`, CocoaPods `AmazonIVSBroadcast/Stages`; **iOS 14+**; copy `GCC_PREPROCESSOR_DEFINITIONS` for `permission_handler` from `example/ios/Podfile` if mic/camera prompts fail.
+
+## Constraints
+
+- Do not recommend shipping **IAM keys in the app** or committing secrets; `example` may use env defaults for local dev only.
+- Keep **pub.dev `name:`** as `aws_ivs_realtime`; replace placeholder `YOUR_GITHUB_USERNAME` in `pubspec.yaml` / podspec when publishing.
+
+When changing native behavior or the MethodChannel, update **both** platforms and any Dart contract comments/tests.
