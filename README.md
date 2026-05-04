@@ -25,6 +25,9 @@ What you get:
 | **Issues** | [https://github.com/vipulbansal/aws_ivs_realtime/issues](https://github.com/vipulbansal/aws_ivs_realtime/issues) |
 | **Runnable example app** | Folder **`example/`** in that repository — [open `example/` on GitHub](https://github.com/vipulbansal/aws_ivs_realtime/tree/main/example) |
 | **Published package** | [https://pub.dev/packages/aws_ivs_realtime](https://pub.dev/packages/aws_ivs_realtime) |
+| **Sample app (app-only, no backend)** | [**aws_ivs_realtime_usage**](https://github.com/vipulbansal/aws_ivs_realtime_usage) — standalone Flutter repo: use the package **from the app only** (no separate backend) as a **reference for integration** |
+
+> **Reference — app-only sample:** [**vipulbansal/aws_ivs_realtime_usage**](https://github.com/vipulbansal/aws_ivs_realtime_usage) is a **standalone Flutter project** (not the in-repo `example/`) that shows how to wire **`aws_ivs_realtime` without a backend**—ideal if you depend on **pub.dev** and want a full app tree to copy from. Clone: [https://github.com/vipulbansal/aws_ivs_realtime_usage](https://github.com/vipulbansal/aws_ivs_realtime_usage).
 
 ---
 
@@ -346,7 +349,7 @@ From [pub.dev](https://pub.dev/packages/aws_ivs_realtime):
 
 ```yaml
 dependencies:
-  aws_ivs_realtime: ^0.1.3
+  aws_ivs_realtime: ^0.1.4
 ```
 
 From Git:
@@ -411,6 +414,8 @@ By default, each native tile is **video only** (no subscribe/mute/dB strip). Cal
 ## Example app (run the demo from GitHub)
 
 The **authoritative runnable project** lives in the **`example/`** directory of [https://github.com/vipulbansal/aws_ivs_realtime](https://github.com/vipulbansal/aws_ivs_realtime) ([`example/` tree](https://github.com/vipulbansal/aws_ivs_realtime/tree/main/example)). Use it to see **lobby → full-screen live → optional IVS Chat**, plus a switch between **SigV4 on device** and a **stub** [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart) implementation.
+
+**App-only reference (no backend):** for a **separate** Flutter app that consumes the published package and does **not** use a backend, see [**aws_ivs_realtime_usage**](https://github.com/vipulbansal/aws_ivs_realtime_usage) on GitHub — [https://github.com/vipulbansal/aws_ivs_realtime_usage](https://github.com/vipulbansal/aws_ivs_realtime_usage). Listed as **Sample app (app-only, no backend)** in the table at the top of this README.
 
 **Run locally** (after you clone `https://github.com/vipulbansal/aws_ivs_realtime.git`):
 

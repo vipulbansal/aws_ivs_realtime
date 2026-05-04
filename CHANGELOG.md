@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- README: prominent **app-only, no-backend** sample app [**aws_ivs_realtime_usage**](https://github.com/vipulbansal/aws_ivs_realtime_usage) — new table row, blockquote callout under the source table, and cross-link from **Example app** so pub.dev users have a standalone Flutter reference repo to clone.
+
 ## 0.1.3
 
 - Native participant tiles: **optional** per-tile state strip (subscribe/mute/audio dB). **Default off** for a cleaner production look; opt in from Dart with `IvsRealtimePlatform.setShowParticipantStateOverlay(true)` (example app enables it so the bundled demo matches earlier behavior). Method channel: `setShowParticipantStateOverlay` with `{ "visible": bool }`.
