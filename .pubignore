@@ -1,0 +1,5 @@
+# IDE / agent context — not part of the published package API.
+.cursor/
+
+# IntelliJ module files (may remain tracked from an old project name).
+*.iml

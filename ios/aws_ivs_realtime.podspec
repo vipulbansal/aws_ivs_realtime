@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
 Native IVS Real-Time stage (Android + iOS) with optional Dart helpers for
 participant tokens, stages, and IVS Chat (SigV4 or your backend).
                        DESC
-  s.homepage         = 'https://github.com/YOUR_GITHUB_USERNAME/aws_ivs_realtime'
+  s.homepage         = 'https://github.com/vipulbansal/aws_ivs_realtime'
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'AWS IVS Realtime Flutter' => 'https://pub.dev/packages/aws_ivs_realtime' }
   s.source           = { :path => '.' }
