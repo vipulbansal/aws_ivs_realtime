@@ -9,7 +9,7 @@ issue_tracker: https://github.com/vipulbansal/aws_ivs_realtime/issues
 
 environment:
   sdk: ^3.11.5
-  flutter: '>=3.24.0'
+  flutter: '>=3.24.0' 
 
 dependencies:
   flutter:
