@@ -14,12 +14,19 @@ typedef IvsAwsCredentialSnapshot = ({
 
 typedef IvsAwsCredentialResolver = IvsAwsCredentialSnapshot Function();
 
-/// All IVS Real-Time + IVS Chat **control plane** operations this demo needs.
+/// All IVS Real-Time + IVS Chat **control plane** operations used by this plugin’s Dart layer.
 ///
-/// - **Option A — Flutter / SigV4:** use [IvsAwsSigV4ControlPlane] with [IvsAwsCredentialResolver]
-///   (current demo: keys from text fields).
-/// - **Option B — Backend:** implement this interface with HTTPS calls to your API
-///   (no IAM secrets in the app; return the same logical data AWS would).
+/// **Production:** implement this interface in your app and forward each call to **your**
+/// backend. Your server performs the matching AWS operation (IAM on the server) and
+/// returns the same *logical* data as AWS (see each method’s AWS doc link).
+///
+/// **Prototype / internal:** use [IvsAwsSigV4ControlPlane] with [IvsAwsCredentialResolver]
+/// so Dart signs AWS directly (long-lived IAM user keys in the client are unsafe for
+/// public apps).
+///
+/// Implementations must supply all of:
+/// [mintParticipantToken], [listStages], [createStage], [deleteStage],
+/// [createChatRoom], [deleteChatRoom], [mintChatToken].
 abstract class IvsLiveControlPlane {
   /// [CreateParticipantToken](https://docs.aws.amazon.com/ivs/latest/RealTimeAPIReference/API_CreateParticipantToken.html)
   Future<String> mintParticipantToken({

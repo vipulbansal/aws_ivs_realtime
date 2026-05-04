@@ -1,6 +1,6 @@
 PODS:
   - AmazonIVSBroadcast/Stages (1.36.0)
-  - aws_ivs_realtime (0.1.0):
+  - aws_ivs_realtime (0.1.2):
     - AmazonIVSBroadcast/Stages (~> 1.36.0)
     - Flutter
   - Flutter (1.0.0)

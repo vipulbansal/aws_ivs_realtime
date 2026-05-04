@@ -1,72 +1,331 @@
 # aws_ivs_realtime
 
-Flutter plugin for **Amazon IVS Real-Time (Stages)** on **Android** and **iOS**, with Dart helpers for:
+Flutter plugin for **Amazon IVS Real-Time**: **low-latency multi-participant live video** (stage / “broadcast” grid) on **Android** and **iOS**, plus optional **Amazon IVS Chat** for **room-style text messages** alongside the stream.
 
-- Native stage **MethodChannel** + **platform view** (`join` / `leave` / `setPublish` / mute)
-- Optional **SigV4** control plane ([`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart)) or your **backend** by implementing [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart)
-- IVS **Chat** WebSocket session ([`IvsChatSession`](lib/ivs_chat_session.dart))
-- Runtime **microphone/camera** requests via [`permission_handler`](https://pub.dev/packages/permission_handler)
+What you get:
 
-**Repository:** [github.com/vipulbansal/aws_ivs_realtime](https://github.com/vipulbansal/aws_ivs_realtime) · **Issues:** [github.com/vipulbansal/aws_ivs_realtime/issues](https://github.com/vipulbansal/aws_ivs_realtime/issues)
+- **Real-time live streaming (Stages)** — native **participant grid** (host and viewers), camera/mic publish, mute, leave; bridged with a **MethodChannel** and **platform view** ([`IvsRealtimePlatform`](lib/ivs_realtime_platform.dart), [`AwsIvsRealtimePlatformView.viewType`](lib/ivs_realtime_platform.dart)).
+- **Control plane in Dart (optional)** — create/list/delete **stages**, mint **participant tokens**, create/delete **chat rooms**, mint **chat tokens** — either by implementing **one** backend-facing interface ([`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart)) or by using the built-in **SigV4-on-device** implementation ([`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart)) for prototypes only.
+- **IVS Chat WebSocket** — [`IvsChatSession`](lib/ivs_chat_session.dart) after you obtain a chat token.
+- **Runtime permissions** — [`permission_handler`](https://pub.dev/packages/permission_handler) before join/publish.
+
+### Live streaming only vs live + chat
+
+- **Streaming only (no chat):** use [`IvsRealtimePlatform`](lib/ivs_realtime_platform.dart) + the **platform view** ([`AwsIvsRealtimePlatformView.viewType`](lib/ivs_realtime_platform.dart)) and a **participant token** from [`mintParticipantToken`](lib/ivs_live_control_plane.dart) / your backend. **Do not** create [`IvsChatSession`](lib/ivs_chat_session.dart), **do not** call [`mintChatToken`](lib/ivs_live_control_plane.dart) / [`createChatRoom`](lib/ivs_live_control_plane.dart), and **do not** add chat UI widgets. The native stage **never** shows a chat pane by itself—there is **no** plugin-wide “chat on/off” flag; chat appears only if **your app** wires it up.
+- **Streaming + chat:** additionally connect [`IvsChatSession`](lib/ivs_chat_session.dart) and build your own message list / composer.
+- **[`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart)** lists chat APIs alongside Real-Time APIs so one implementation can power both products; you may still call **only** the stage-related methods from your UI—unused chat methods stay unused (no extra change inside this package).
+- The **`example/`** app demonstrates **both** together for convenience; a minimal integration can be **video only**.
+
+### Source repository, pub.dev, and where to run the demo
+
+| What | URL / path |
+|------|------------|
+| **GitHub (browse source)** | [https://github.com/vipulbansal/aws_ivs_realtime](https://github.com/vipulbansal/aws_ivs_realtime) |
+| **Clone** | `git clone https://github.com/vipulbansal/aws_ivs_realtime.git` |
+| **Issues** | [https://github.com/vipulbansal/aws_ivs_realtime/issues](https://github.com/vipulbansal/aws_ivs_realtime/issues) |
+| **Runnable example app** | Folder **`example/`** in that repository — [open `example/` on GitHub](https://github.com/vipulbansal/aws_ivs_realtime/tree/main/example) |
+| **Published package** | [https://pub.dev/packages/aws_ivs_realtime](https://pub.dev/packages/aws_ivs_realtime) |
 
 ---
 
-## Does installing the package “turn on” backend or frontend AWS?
+## Two layers (do not confuse them)
 
-**No.** Adding this dependency does **not** register a backend, prompt for keys, or choose a mode. **Your Flutter code** must:
-
-1. Obtain a **participant token** (almost always via **your HTTPS API** in production), then  
-2. Call [`IvsRealtimePlatform.join`](lib/ivs_realtime_platform.dart) and embed the [`AwsIvsRealtimePlatformView.viewType`](lib/ivs_realtime_platform.dart) grid.
-
-The **optional** Dart files in this package are **building blocks** you wire up (see [Where everything lives in the package](#where-everything-lives-in-the-package)). For a concrete wiring sample, run the **`example/`** app in this repository (SigV4 vs stub backend toggle).
-
-**In-package documentation:** open [`package:aws_ivs_realtime/aws_ivs_realtime.dart`](https://pub.dev/documentation/aws_ivs_realtime/latest/aws_ivs_realtime/) on pub.dev after publish — the library doc summarizes backend vs device signing and which keys mean what.
+| Layer | Purpose | Key type |
+|-------|---------|----------|
+| **Native stage** | Render tiles + send/receive real-time A/V | [`IvsRealtimePlatform.join`](lib/ivs_realtime_platform.dart) needs only the **IVS participant token** (opaque string from AWS **CreateParticipantToken**). **Never** pass IAM access key / secret here. |
+| **Control plane (Dart)** | Create stages, list stages, mint participant/chat tokens, delete resources | Either **your backend** (implement [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart)) or **IAM credentials inside the app** via [`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart) (non-production pattern). |
 
 ---
 
-## AWS keys vs participant token (plain English)
+## Backend integration: implement **`IvsLiveControlPlane`**
 
-People mix these up; IVS Real-Time needs **both concepts**, but **not** the same string for everything.
+If your AWS keys and SigV4 signing live **only on your servers**, the Flutter side should **`implements IvsLiveControlPlane`**.
 
-| What people call it | What it really is | Do you pass it to `join(... token:)`? | When do you need it? |
-|---------------------|---------------------|----------------------------------------|-------------------------|
-| **Participant token** | Opaque string returned by AWS [**CreateParticipantToken**](https://docs.aws.amazon.com/ivs/latest/RealTimeAPIReference/API_CreateParticipantToken.html) | **Yes** — this is the only `token` [`join`](lib/ivs_realtime_platform.dart) accepts | Always, for every user joining a stage |
-| **AWS access key ID** | IAM user or long-term access key *id* (starts with `AKIA…` for a root-style IAM user key) | **No** | Only if **your app** signs AWS HTTP requests on-device ([`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart), [`IvsRealtimeTokenClient`](lib/ivs_realtime_token_client.dart)) — **not** recommended for production |
-| **AWS secret access key** | Secret paired with that access key ID | **No** | Same as above — should live **only on your server** in production |
-| **Session token** | Third string when using **temporary** credentials (STS, assumed role) | **No** | Same as above: optional third field with access key + secret when signing **from the device**; on the backend you usually use an **IAM role** and never surface these three fields to the phone |
+### What you must do (no ambiguity)
 
-**Rule of thumb for production:** the mobile app should only ever see **HTTPS + your own JSON** and a **participant token** string. **Access key ID / secret / session token** stay on the server (or in your CI), where they are used to call AWS and mint short-lived tokens.
+1. **Create a Dart class** that **`implements IvsLiveControlPlane`** (see [`lib/ivs_live_control_plane.dart`](lib/ivs_live_control_plane.dart) for exact signatures).
+2. **Implement every method** in that abstract class. Each method corresponds **one-to-one** to an AWS operation listed below. Your implementation typically:
+   - forwards the method arguments to **your** HTTP/gRPC/mobile-BFF API using **your** URLs and auth; then  
+   - parses **your** API’s JSON into the Dart return type shown.
+3. **Your server** performs the real AWS call (with an IAM **role** or temporary credentials). The app **never** receives long-lived IAM user keys in this model.
+4. **Reference:** [`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart) in this repo is the **same interface** already implemented using SigV4 from the device — use its source as a behavioral reference for what each operation is supposed to accomplish (then replace networking with calls to your backend).
 
-**IVS Chat** is separate: you mint a **chat token** ([CreateChatToken](https://docs.aws.amazon.com/ivs/latest/ChatAPIReference/API_CreateChatToken.html)) and pass that into [`IvsChatSession`](lib/ivs_chat_session.dart), not into stage `join`.
+This README **does not** define your REST paths or JSON field names; only the **Dart contract** is fixed.
+
+### Methods you must implement (full contract)
+
+| You implement | AWS operation (your backend must honor this semantics) | Dart return type |
+|-----------------|---------------------------------------------------------|------------------|
+| `mintParticipantToken` | [CreateParticipantToken](https://docs.aws.amazon.com/ivs/latest/RealTimeAPIReference/API_CreateParticipantToken.html) | `Future<String>` — **only** the participant token string (same value as `participantToken.token` in the AWS JSON). |
+| `listStages` | [ListStages](https://docs.aws.amazon.com/ivs/latest/RealTimeAPIReference/API_ListStages.html) | `Future<List<Map<String, dynamic>>>` — one map per stage summary (same information you would map from AWS `stageList` items). |
+| `createStage` | [CreateStage](https://docs.aws.amazon.com/ivs/latest/RealTimeAPIReference/API_CreateStage.html) | `Future<Map<String, dynamic>>` — stage object / metadata as maps (equivalent to parsing AWS `stage` + related fields your UI needs). |
+| `deleteStage` | [DeleteStage](https://docs.aws.amazon.com/ivs/latest/RealTimeAPIReference/API_DeleteStage.html) | `Future<void>` |
+| `createChatRoom` | [CreateRoom](https://docs.aws.amazon.com/ivs/latest/ChatAPIReference/API_CreateRoom.html) (IVS Chat) | `Future<Map<String, dynamic>>` — room resource (same semantics as AWS `room` in the response). |
+| `deleteChatRoom` | [DeleteRoom](https://docs.aws.amazon.com/ivs/latest/ChatAPIReference/API_DeleteRoom.html) | `Future<void>` |
+| `mintChatToken` | [CreateChatToken](https://docs.aws.amazon.com/ivs/latest/ChatAPIReference/API_CreateChatToken.html) | `Future<Map<String, dynamic>>` — token payload your app passes into [`IvsChatSession`](lib/ivs_chat_session.dart) (same logical fields AWS returns for a chat token). |
+
+**Typical live flow with a backend:** `createStage` (once) → share **stage ARN** → for each participant `mintParticipantToken` → [`IvsRealtimePlatform.join(token: ...)`](lib/ivs_realtime_platform.dart) with native grid widget → optional: `createChatRoom` / `mintChatToken` / [`IvsChatSession`](lib/ivs_chat_session.dart) for messages.
+
+### After you implement it: how to **use** `IvsLiveControlPlane` in your app
+
+Implementing the interface is only half the work. You also **instantiate** your class and **call its methods** from your widgets / controllers, then **feed the return values** into the **other** types from this package.
+
+| Object | Type | Role |
+|--------|------|------|
+| `control` | **Your** `implements IvsLiveControlPlane` | Talks to **your** backend (or wraps it). Produces tokens and stage/chat metadata. |
+| `stage` | [`IvsRealtimePlatform`](lib/ivs_realtime_platform.dart) | Talks to **native** Android/iOS IVS Real-Time (join / leave / mute / events). **Does not** use your interface by itself — **you** call both. |
+| Grid widget | `AndroidView` / `UiKitView` | Renders video tiles; see the **Platform view** subsection (under **App-only** below). |
+
+**1) Live video (Stages)** — what goes where
+
+1. Build `final control = MyBackendControlPlane(/* your HTTP client, base URL, auth */);` and `final stage = IvsRealtimePlatform();` (often `State` fields).
+2. **Discover or create a stage** (optional): `await control.listStages(region: region)` for UI lists, or `final created = await control.createStage(region: region, name: name)`. Your implementation’s map should include something you can treat as **stage ARN** (same information as AWS **CreateStage** / **ListStages** — commonly an `arn` field on the stage object).
+3. **Mint a participant token** for the current user:  
+   `final participantToken = await control.mintParticipantToken(region: region, stageArn: stageArn, userId: optionalUserId, durationMinutes: 120, capabilities: const ['PUBLISH', 'SUBSCRIBE']);`  
+   The returned **`String` is the only value** that ever goes to native join.
+4. **Show the grid** in the widget tree (platform view, non-zero size) — same snippet as in the **Platform view** subsection under **App-only** below.
+5. **Attach to the stage:**  
+   `await stage.join(token: participantToken, publish: isHostOrPublisher);`  
+   Mic permission is always requested; camera when `publish` is true.
+6. **While live:** use `stage.setPublish`, `stage.setLocalStreamMuted`, listen to [`stage.stageConnectionEvents`](lib/ivs_realtime_platform.dart) for disconnect / host-ended flows.
+7. **When done:** `await stage.leave();` and, if you no longer need the AWS stage, `await control.deleteStage(region: region, stageArn: stageArn)`.
+
+Your backend’s JSON shapes are **yours**; the Dart side only needs to **extract** `String` / `Map` / `List` values that match the **meanings** in the table above so you can pass them into `join`, UI models, and chat below.
+
+**2) IVS Chat (optional)** — chaining `IvsLiveControlPlane` → [`IvsChatSession`](lib/ivs_chat_session.dart)
+
+1. **Room:** `final room = await control.createChatRoom(region: region, name: roomDisplayName);` — take **`roomArn`** (or equivalent) from the map your backend returns (AWS **CreateRoom** exposes the room ARN).
+2. **Session:** `final chat = IvsChatSession();`
+3. **Connect:** `await chat.connect(region: region, resolveChatToken: () async { final m = await control.mintChatToken(region: region, roomArn: roomArn, userId: stableUserId, attributes: {...}); final t = m['token'] as String?; if (t == null || t.isEmpty) throw StateError('no chat token'); return t; });`  
+   [`IvsChatSession.connect`](lib/ivs_chat_session.dart) calls `resolveChatToken` again on **reconnect**, so each call should hit your backend for a **fresh** token (short-lived), not reuse one cached string forever.
+4. **UI:** listen to `chat.lines` (`Stream<IvsChatLine>`) for incoming messages; use `chat.sendMessage` when the socket is open.
+5. **Teardown:** `await chat.dispose();` and optionally `await control.deleteChatRoom(region: region, roomArn: roomArn)`.
+
+**3) Summary**
+
+- **`IvsLiveControlPlane`** = *how your Flutter code gets AWS-shaped data from your servers*.  
+- **`IvsRealtimePlatform` + platform view** = *how that data becomes live video on device*.  
+- **`IvsChatSession`** = *how chat tokens from the same interface become a WebSocket message stream*.
+
+---
+
+## App-only (no backend): where IAM keys and ARNs go
+
+**Preferred built-in type:** [`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart) with an [`IvsAwsCredentialResolver`](lib/ivs_live_control_plane.dart) — a **zero-argument function** that returns `(accessKeyId, secretAccessKey, sessionToken?)`.
+
+Put credentials **only** in one of these places (pick one strategy and stick to it):
+
+| Strategy | Where you put **access key ID**, **secret key**, optional **session token** | Where you put **AWS region** and **stage ARN** |
+|----------|-----------------------------------------------------------------------------|--------------------------------------------------|
+| **A. Build-time defines** | Inside the resolver, read `const String.fromEnvironment('AWS_ACCESS_KEY_ID')`, `'AWS_SECRET_ACCESS_KEY'`, optional `'AWS_SESSION_TOKEN'` | Same pattern: `String.fromEnvironment('AWS_REGION', defaultValue: 'us-east-1')`, `String.fromEnvironment('IVS_STAGE_ARN')` |
+| **B. Runtime UI or secure storage** | Resolver reads `TextEditingController.text`, [`flutter_secure_storage`](https://pub.dev/packages/flutter_secure_storage), env via [`Platform.environment`](https://api.dart.dev/stable/dart-io/Platform/environment.html), etc. | Passed as **variables** into `mintParticipantToken(region: ..., stageArn: ...)` from your own state (text fields, remote config, etc.) |
+| **C. Literals in source** | **Do not** commit keys in Dart string literals to a public repository. | Same |
+
+**Run / build with compile-time defines** (strategy A), from your app directory:
+
+```text
+flutter run \
+  --dart-define=AWS_ACCESS_KEY_ID=YOUR_ACCESS_KEY_ID \
+  --dart-define=AWS_SECRET_ACCESS_KEY=YOUR_SECRET_ACCESS_KEY \
+  --dart-define=AWS_REGION=us-east-1 \
+  --dart-define=IVS_STAGE_ARN=arn:aws:ivs:us-east-1:123456789012:stage/yourStageId
+```
+
+Optional: **who this participant is** on the stage (otherwise AWS / tiles only see an anonymous participant):
+
+```text
+  --dart-define=IVS_PARTICIPANT_USER_ID=alice-12345
+```
+
+Optional temporary credentials:
+
+```text
+  --dart-define=AWS_SESSION_TOKEN=YOUR_SESSION_TOKEN
+```
+
+**Minimal usage after keys are available:**
+
+```dart
+import 'package:aws_ivs_realtime/aws_ivs_realtime.dart';
+
+final ivs = IvsRealtimePlatform();
+final control = IvsAwsSigV4ControlPlane(
+  resolveCredentials: () => (
+    accessKeyId: const String.fromEnvironment('AWS_ACCESS_KEY_ID'),
+    secretAccessKey: const String.fromEnvironment('AWS_SECRET_ACCESS_KEY'),
+    sessionToken: _opt('AWS_SESSION_TOKEN'),
+  ),
+);
+
+String? _opt(String k) {
+  const v = String.fromEnvironment(k, defaultValue: '');
+  return v.isEmpty ? null : v;
+}
+
+Future<void> joinWithSigV4() async {
+  const region = String.fromEnvironment('AWS_REGION', defaultValue: 'us-east-1');
+  const stageArn = String.fromEnvironment('IVS_STAGE_ARN');
+  const participantUserId = String.fromEnvironment('IVS_PARTICIPANT_USER_ID', defaultValue: '');
+
+  final token = await control.mintParticipantToken(
+    region: region,
+    stageArn: stageArn,
+    // Sent to AWS CreateParticipantToken as `userId` — use your real signed-in id / handle.
+    userId: participantUserId.isEmpty ? null : participantUserId,
+  );
+  await ivs.join(token: token, publish: true);
+}
+```
+
+**Where the “name” comes from (app-only is the same idea as backend):**
+
+- **Stage / live video:** the README snippet above did not show a name before because **`userId` is optional**. Pass **`userId:`** into [`mintParticipantToken`](lib/ivs_live_control_plane.dart) (from auth, profile, or `--dart-define=IVS_PARTICIPANT_USER_ID` as a stand-in). That value is what AWS associates with the participant for the Real-Time session; the native grid labels participants using IVS metadata—not a hardcoded “Flutter demo user” from this package.
+- **IVS Chat sender labels:** set when you call **`control.mintChatToken(..., userId: ..., attributes: {'displayName': 'Alice Smith'})`**. Your UI reads [`IvsChatLine`](lib/ivs_chat_session.dart) events; other clients see the attributes / user id your app sent. There is no separate “name” field on [`IvsRealtimePlatform.join`](lib/ivs_realtime_platform.dart)—only the opaque **participant token**—so **identity for chat is always** via **`mintChatToken`** (or your backend’s equivalent).
+
+**Important:** `mintParticipantToken` + `join` **do not** draw anything on screen by themselves. You **must** embed the native **participant grid** with a Flutter **platform view** or you will hear/encode media but **see no tiles / video**.
+
+### Platform view: show the live grid (AndroidView / UiKitView)
+
+Use the constant [`AwsIvsRealtimePlatformView.viewType`](lib/ivs_realtime_platform.dart) (`ivs_stage_view`). Match the plugin’s codec registration with **`StandardMessageCodec()`**. Give the view a **non-zero** size (`Expanded`, `SizedBox.expand`, etc.). **Backend and app-only flows both use this widget** — only the way you obtain the participant token differs.
+
+```dart
+import 'dart:io';
+
+import 'package:aws_ivs_realtime/aws_ivs_realtime.dart';
+import 'package:flutter/cupertino.dart' show UiKitView;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+Widget ivsParticipantGrid() {
+  if (!ivsNativeStageSupported) {
+    return const Center(child: Text('Stages are only on Android and iOS.'));
+  }
+  if (Platform.isAndroid) {
+    return AndroidView(
+      viewType: AwsIvsRealtimePlatformView.viewType,
+      layoutDirection: TextDirection.ltr,
+      creationParamsCodec: StandardMessageCodec(),
+    );
+  }
+  return UiKitView(
+    viewType: AwsIvsRealtimePlatformView.viewType,
+    layoutDirection: TextDirection.ltr,
+    creationParamsCodec: StandardMessageCodec(),
+  );
+}
+
+// Typical layout: put the platform view in an Expanded, then call joinWithSigV4()
+// (or join with a backend-minted token). If tiles stay blank after join, call
+// ivs.refreshStageBindings() once from a post-frame callback — see DOCUMENTATION.md.
+```
+
+### Listing stages, showing them in Flutter UI, and joining an **existing** stage
+
+The same [`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart) (or your [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart) backend implementation) exposes **`listStages`**, **`createStage`**, **`deleteStage`**, chat helpers, etc. Typical **Dart-only** flow:
+
+1. **`await control.listStages(region: region)`** → `List<Map<String, dynamic>>` (each map is an AWS **stage** summary; at minimum expect an **`arn`** and often a **`name`**).
+2. **Render** that list with normal Flutter widgets (`ListView`, `ListTile`, `DataTable`, …) — this is where you choose titles, subtitles, pull-to-refresh, empty states, etc.
+3. When the user picks a row, read **`stage['arn'] as String`** and call **`await control.mintParticipantToken(region: region, stageArn: arn, userId: …)`**, then **`await ivs.join(token: token, publish: …)`** with the platform view already in the tree.
+
+Optional: **`await control.createStage(region: region, name: 'my-show-001', tags: {...})`** returns the created **stage** `Map` (includes **`arn`**); mint a token for that ARN to go live as host.
+
+```dart
+import 'package:aws_ivs_realtime/aws_ivs_realtime.dart';
+
+Future<void> refreshStageCatalog({
+  required IvsAwsSigV4ControlPlane control,
+  required String region,
+  required void Function(List<Map<String, dynamic>> stages) onStages,
+}) async {
+  final stages = await control.listStages(region: region);
+  onStages(stages);
+}
+
+Future<void> joinExistingStageFromRow({
+  required IvsAwsSigV4ControlPlane control,
+  required IvsRealtimePlatform ivs,
+  required String region,
+  required String stageArn,
+  String? participantUserId,
+  bool publish = false,
+}) async {
+  final token = await control.mintParticipantToken(
+    region: region,
+    stageArn: stageArn,
+    userId: participantUserId,
+  );
+  await ivs.join(token: token, publish: publish);
+}
+
+// Example list wiring (simplified — use setState / provider / bloc in a real app):
+Widget stagePicker({
+  required List<Map<String, dynamic>> stages,
+  required void Function(String arn) onPickArn,
+}) {
+  return ListView.builder(
+    itemCount: stages.length,
+    itemBuilder: (context, i) {
+      final s = stages[i];
+      final arn = s['arn'] as String?;
+      final title = s['name'] as String? ?? arn ?? 'Stage';
+      return ListTile(
+        title: Text(title),
+        subtitle: arn != null
+            ? Text(arn, maxLines: 1, overflow: TextOverflow.ellipsis)
+            : null,
+        onTap: arn == null ? null : () => onPickArn(arn),
+      );
+    },
+  );
+}
+```
+
+If you use **tags** to mark which stages are “live” (as the repo **`example/`** does with [`IvsRealtimeStagesApi.tagStatus`](lib/ivs_realtime_stages_api.dart)), filter in Dart with **`stages.where(...)`** before building the list — the API returns **all** stages the credentials can see, not only live ones.
+
+---
+
+## Native stage: embed the grid and join (after you have a participant token)
+
+This is the **same** for **backend** or **app-only** paths: once you have a **participant token** string, the native video UI always goes through the **platform view** above plus [`IvsRealtimePlatform.join`](lib/ivs_realtime_platform.dart).
+
+1. **Host app:** Android **`minSdk = 28`** on your **app** module; iOS **14+**; permissions and `permission_handler` iOS preprocessor flags — see [Requirements](#requirements) and [Install](#install).
+2. **Widget:** `AndroidView` (Android) or `UiKitView` (iOS) — same **Platform view** snippet as in the **App-only** section above (required for any participant token source).
+3. **Join:** `await ivs.join(token: participantTokenString, publish: hostPublishesA/V);`
+4. **Events / lifecycle:** subscribe to [`stageConnectionEvents`](lib/ivs_realtime_platform.dart); call [`leave`](lib/ivs_realtime_platform.dart) when done; optionally [`refreshStageBindings`](lib/ivs_realtime_platform.dart) after first frame if tiles misbind — details in [DOCUMENTATION.md](DOCUMENTATION.md).
+
+---
+
+## AWS keys vs participant token
+
+| String | Pass to `join(token:)`? | Role |
+|--------|-------------------------|------|
+| **Participant token** | **Yes** | Output of **CreateParticipantToken**; consumed by native IVS SDK. |
+| **Access key ID / secret / session token** | **No** | Only for **signing AWS HTTPS** in Dart ([`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart)) or on your server. |
 
 ---
 
 ## What you need to know first
 
-This package **does not** create an IVS stage or mint tokens by itself. It **joins a stage** once you have a **participant token**.
-
-| Step | Who does it | Notes |
-|------|----------------|--------|
-| 1. Create / choose an IVS **stage** | Your product (console, IaC, or API) | You need the **stage ARN** to mint tokens. |
-| 2. Mint a **participant token** | **Recommended:** your **backend** with IAM on the server | Returns the opaque token string to the app. |
-| 2 alt. Mint token in **Flutter** (demo) | [`IvsRealtimeTokenClient`](lib/ivs_realtime_token_client.dart) or [`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart) | Uses **IAM access key + secret (+ optional session token)** in Dart — **local / demo only**. |
-| 3. Show the **native grid** | `AndroidView` / `UiKitView` with [`AwsIvsRealtimePlatformView.viewType`](lib/ivs_realtime_platform.dart) | Must match native registration (`ivs_stage_view`). |
-| 4. **Join** | [`IvsRealtimePlatform.join`](lib/ivs_realtime_platform.dart) | Pass **participant token** + `publish` flag. |
+| Step | Responsibility |
+|------|----------------|
+| 1. Stage exists | You (console, IaC, `createStage` via control plane, etc.). |
+| 2. Participant token | `mintParticipantToken` on your [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart) implementation **or** [`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart) / [`IvsRealtimeTokenClient`](lib/ivs_realtime_token_client.dart). |
+| 3. Native UI + join | [`AwsIvsRealtimePlatformView.viewType`](lib/ivs_realtime_platform.dart) + [`IvsRealtimePlatform.join`](lib/ivs_realtime_platform.dart). |
 
 ---
 
 ## Where everything lives in the package
 
-| Goal | Type / API | Credentials involved |
-|------|------------|-------------------------|
-| Join / leave / mute / publish toggles | [`IvsRealtimePlatform`](lib/ivs_realtime_platform.dart) | **Only** participant token for `join` — **not** IAM keys |
-| Embed native participant grid | [`AwsIvsRealtimePlatformView.viewType`](lib/ivs_realtime_platform.dart) | None |
-| Your backend wraps AWS | Implement [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart) | None in plugin; **your** server uses IAM role / keys |
-| Sign AWS from Flutter (demo) | [`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart) + [`IvsAwsCredentialResolver`](lib/ivs_live_control_plane.dart) | Access key ID + secret + optional session token |
-| Lower-level “just mint participant token” in Dart | [`IvsRealtimeTokenClient.createParticipantToken`](lib/ivs_realtime_token_client.dart) | Same as SigV4 path — IAM triple in Dart |
-| List/create/delete stages from Dart (demo helpers) | [`IvsRealtimeStagesApi`](lib/ivs_realtime_stages_api.dart) | Same IAM triple passed into each call |
-| IVS Chat REST helpers | [`IvsChatApi`](lib/ivs_chat_api.dart) | IAM triple for chat control plane |
-| IVS Chat WebSocket | [`IvsChatSession`](lib/ivs_chat_session.dart) | **Chat token** from your backend or [`mintChatToken`](lib/ivs_live_control_plane.dart) |
+| Goal | API |
+|------|-----|
+| Native join / leave / mute / publish | [`IvsRealtimePlatform`](lib/ivs_realtime_platform.dart) |
+| Native grid `viewType` | [`AwsIvsRealtimePlatformView`](lib/ivs_realtime_platform.dart) |
+| **Backend-shaped control plane (you implement)** | [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart) |
+| **SigV4 on device (implements same interface)** | [`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart) |
+| Low-level participant token HTTP + SigV4 | [`IvsRealtimeTokenClient`](lib/ivs_realtime_token_client.dart) |
+| Stage REST helpers (keys passed per call) | [`IvsRealtimeStagesApi`](lib/ivs_realtime_stages_api.dart) |
+| Chat REST helpers | [`IvsChatApi`](lib/ivs_chat_api.dart) |
+| Chat WebSocket | [`IvsChatSession`](lib/ivs_chat_session.dart) |
 
 ---
 
@@ -77,7 +336,7 @@ This package **does not** create an IVS stage or mint tokens by itself. It **joi
 | Android  | API 28  | `RECORD_AUDIO`, `CAMERA` when publishing |
 | iOS      | 14.0    | `NSMicrophoneUsageDescription`, `NSCameraUsageDescription` |
 
-Native SDKs: Android Maven `ivs-broadcast` stages AAR (**1.41.0** in this repo); iOS CocoaPods `AmazonIVSBroadcast/Stages` (**~> 1.36.0** in the podspec—align when CocoaPods publishes newer series).
+Native SDKs: Android Maven `ivs-broadcast` stages AAR (**1.41.0** in this repo); iOS CocoaPods `AmazonIVSBroadcast/Stages` (**~> 1.36.0** in the podspec).
 
 ---
 
@@ -87,7 +346,7 @@ From [pub.dev](https://pub.dev/packages/aws_ivs_realtime):
 
 ```yaml
 dependencies:
-  aws_ivs_realtime: ^0.1.1
+  aws_ivs_realtime: ^0.1.2
 ```
 
 From Git:
@@ -99,77 +358,87 @@ dependencies:
       url: https://github.com/vipulbansal/aws_ivs_realtime.git
 ```
 
-### Android
+### Android — **your** `AndroidManifest.xml` (required)
 
-Merge permissions into your app `AndroidManifest.xml` (see `example/android/app/src/main/AndroidManifest.xml`).
+The plugin’s own [`android/src/main/AndroidManifest.xml`](android/src/main/AndroidManifest.xml) does **not** declare network or A/V permissions. **Your application module** must include them so the merged app manifest allows IVS Real-Time and `permission_handler` prompts.
 
-### iOS
+Inside **`android/app/src/main/AndroidManifest.xml`**, as direct children of `<manifest>` (before `<application>`), add at least:
 
-Set usage strings in `Info.plist` (see `example/ios/Runner/Info.plist`). In your `Podfile`, use at least **iOS 14** and, if CocoaPods requires it, `use_modular_headers!` (see `example/ios/Podfile`).
-
-**`permission_handler` on iOS:** you must add preprocessor flags so microphone/camera code is compiled into `permission_handler_apple`; otherwise `Permission.microphone` / `Permission.camera` never show the system dialog. Copy the `GCC_PREPROCESSOR_DEFINITIONS` block from `example/ios/Podfile` `post_install` (`PERMISSION_MICROPHONE=1`, `PERMISSION_CAMERA=1`).
-
----
-
-## Control plane: backend (recommended) vs SigV4 on the device
-
-### Option A — Backend API (production)
-
-1. Your server uses an **IAM role** (or instance profile) to call **CreateParticipantToken**.  
-2. Your app calls **only your HTTPS API**; the response includes the **participant token** string.  
-3. Implement [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart): each method performs `http.get` / `post` to **your** URLs; no AWS keys in the app binary.
-
-### Option B — SigV4 from the device (example / debugging only)
-
-[`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart) signs requests using **access key ID + secret access key + optional session token** from an [`IvsAwsCredentialResolver`](lib/ivs_live_control_plane.dart). The **`example/`** app exposes text fields and [`--dart-define`](https://dart.dev/tools/dart-compile#passing-dart-define-values) for local runs.
-
-**Do not** ship IAM user keys in a store build or commit them to a public repo.
-
----
-
-## Usage (minimal)
-
-```dart
-import 'package:aws_ivs_realtime/aws_ivs_realtime.dart';
-
-// 1) `participantToken` = string from CreateParticipantToken (from YOUR API in prod).
-
-final stage = IvsRealtimePlatform();
-await stage.join(token: participantToken, publish: isHost);
-
-AndroidView(viewType: AwsIvsRealtimePlatformView.viewType, ...)
-// iOS: UiKitView with the same viewType.
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 ```
 
-Listen to [`stageConnectionEvents`](lib/ivs_realtime_platform.dart) for host-ended / disconnected events.
+- **`INTERNET`** — AWS HTTPS, IVS signaling, IVS Chat WebSocket.  
+- **`RECORD_AUDIO`** — join stage (subscribe/publish audio).  
+- **`CAMERA`** — publish video when `join(..., publish: true)` / host camera.  
+- **`MODIFY_AUDIO_SETTINGS`** — used in the reference example for audio routing; safe to keep for parity with [`example/android/app/src/main/AndroidManifest.xml`](example/android/app/src/main/AndroidManifest.xml).
 
-### IVS Chat (optional)
+Declaring these is **not** optional: the Dart side only **requests** runtime access via [`permission_handler`](https://pub.dev/packages/permission_handler); the OS still requires the `<uses-permission>` entries in **your** manifest.
 
-Mint a **chat token** server-side or via [`IvsLiveControlPlane.mintChatToken`](lib/ivs_live_control_plane.dart), then use [`IvsChatSession`](lib/ivs_chat_session.dart). The **`example/`** app shows chat next to the stage.
+### iOS — **your** `Info.plist` + `Podfile` (required)
+
+Add (or merge) usage descriptions in **`ios/Runner/Info.plist`** — replace the strings with copy appropriate for your app:
+
+```xml
+<key>NSCameraUsageDescription</key>
+<string>Camera is used to publish your video to the IVS Real-Time stage when you go live.</string>
+<key>NSMicrophoneUsageDescription</key>
+<string>Microphone is used to publish and receive audio on the IVS Real-Time stage.</string>
+```
+
+In **`ios/Podfile`**, use at least **iOS 14** and, if CocoaPods requires it, `use_modular_headers!` (see [`example/ios/Podfile`](example/ios/Podfile)).
+
+**`permission_handler` on iOS:** copy the `GCC_PREPROCESSOR_DEFINITIONS` block from `example/ios/Podfile` `post_install` (`PERMISSION_MICROPHONE=1`, `PERMISSION_CAMERA=1`) so microphone/camera code is compiled into `permission_handler_apple`; otherwise dialogs never appear.
 
 ---
 
-## Example app
+## Customizing **buttons and layout** around the live stream (Flutter / Dart)
 
-Under **`example/`**: lobby → full-screen live → chat, with a switch between **SigV4 on device** (keys in UI / defines) and a **stub backend** illustrating [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart).
+The **native participant grid** (video tiles inside [`AndroidView`](https://api.flutter.dev/flutter/widgets/AndroidView-class.html) / [`UiKitView`](https://api.flutter.dev/flutter/cupertino/UiKitView-class.html)) is drawn by the plugin’s **embedded** Android / iOS UI. You **do not** need to edit native XML or Swift to:
+
+- Add **lobbies**, **toolbars**, **bottom sheets**, **navigation**, **theme colors**, typography, padding, or **any Flutter layout** around the platform view (`Stack`, `Scaffold`, `SafeArea`, `Row`/`Column`, etc.).
+- Build **lists of stages**, **Join / Leave** buttons, host vs viewer toggles, or overlays (mute, end stream) — all in **Dart**, calling [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart) / [`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart) + [`IvsRealtimePlatform`](lib/ivs_realtime_platform.dart) as in the **Listing stages…** snippet under **App-only** earlier in this README.
+
+Treat the platform view like a **single embedded surface**: you control **everything outside and around it** with normal Flutter widgets. Changing **how each internal video tile** looks (pixel-level native skin) is outside typical app integration and is **not** required for custom product UI.
+
+---
+
+## Example app (run the demo from GitHub)
+
+The **authoritative runnable project** lives in the **`example/`** directory of [https://github.com/vipulbansal/aws_ivs_realtime](https://github.com/vipulbansal/aws_ivs_realtime) ([`example/` tree](https://github.com/vipulbansal/aws_ivs_realtime/tree/main/example)). Use it to see **lobby → full-screen live → optional IVS Chat**, plus a switch between **SigV4 on device** and a **stub** [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart) implementation.
+
+**Run locally** (after you clone `https://github.com/vipulbansal/aws_ivs_realtime.git`):
+
+```bash
+cd aws_ivs_realtime/example
+flutter pub get
+flutter run
+```
+
+Use a **physical device or emulator** that meets [Requirements](#requirements). For SigV4 from defines, pass the same `--dart-define=...` values documented under **App-only** in this README.
+
+If you depend on the package from **pub.dev** only, your own app will not contain this `example/` tree — **clone the GitHub repository** whenever you want to run or copy from the demo.
 
 ---
 
 ## Documentation
 
-Architecture, MethodChannel / EventChannel contracts, SigV4 **service scope** (`ivs` vs `ivsrealtime`), troubleshooting: [DOCUMENTATION.md](DOCUMENTATION.md).
+Channels, SigV4 service scope (`ivs` vs `ivsrealtime`), troubleshooting: [DOCUMENTATION.md](DOCUMENTATION.md).
 
 ---
 
 ## Contributing
 
-Issues and pull requests: [vipulbansal/aws_ivs_realtime](https://github.com/vipulbansal/aws_ivs_realtime).
+Issues and pull requests: [https://github.com/vipulbansal/aws_ivs_realtime](https://github.com/vipulbansal/aws_ivs_realtime) (same repository linked in **Source repository** at the top of this README).
 
 ---
 
 ## Publishing (maintainers)
 
-`dart pub publish` from package root. Do not ship IAM credentials in example or app code.
+`dart pub publish` from package root. Do not ship IAM credentials in app binaries or public repos.
 
 ---
 
