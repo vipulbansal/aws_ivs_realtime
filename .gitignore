@@ -1,3 +1,6 @@
+# Cursor IDE (local / team AI rules — not part of the published app)
+.cursor/
+
 # Miscellaneous
 *.class
 *.log
