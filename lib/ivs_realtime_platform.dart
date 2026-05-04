@@ -16,6 +16,10 @@ bool get ivsNativeStageSupported =>
     Platform.isAndroid || Platform.isIOS;
 
 /// Native IVS Real-Time stage controls (Android + iOS).
+///
+/// This class talks to the **Amazon IVS Broadcast** stage SDK over a method channel.
+/// It does **not** call AWS IAM or mint tokens by itself. Obtain a **participant
+/// token** first (typically from your backend); see [join].
 class IvsRealtimePlatform {
   IvsRealtimePlatform()
       : _channel = const MethodChannel(_channelName),
@@ -31,7 +35,15 @@ class IvsRealtimePlatform {
   Stream<Map<String, dynamic>> get stageConnectionEvents =>
       _stageEvents.receiveBroadcastStream().map(_decodeStageEvent);
 
-  /// Joins the stage with Amazon's participant token, or leaves if already connected.
+  /// Joins the stage with Amazon's **participant token**, or leaves if already connected.
+  ///
+  /// [token] must be the string from
+  /// [CreateParticipantToken](https://docs.aws.amazon.com/ivs/latest/RealTimeAPIReference/API_CreateParticipantToken.html)
+  /// (`participantToken.token` in the JSON response). It is **not** an IAM access key
+  /// ID, secret access key, or session token.
+  ///
+  /// [publish] controls whether this participant publishes camera + microphone
+  /// (host-style) or is receive-only, subject to the capabilities encoded in the token.
   Future<void> join({required String token, required bool publish}) async {
     if (!ivsNativeStageSupported) {
       throw UnsupportedError(
