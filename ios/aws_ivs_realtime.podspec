@@ -3,7 +3,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'aws_ivs_realtime'
-  s.version          = '0.1.0'
+  s.version          = '0.1.1'
   s.summary          = 'Amazon IVS Real-Time (Stages) for Flutter.'
   s.description      = <<-DESC
 Native IVS Real-Time stage (Android + iOS) with optional Dart helpers for

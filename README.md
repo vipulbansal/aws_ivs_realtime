@@ -87,7 +87,7 @@ From [pub.dev](https://pub.dev/packages/aws_ivs_realtime):
 
 ```yaml
 dependencies:
-  aws_ivs_realtime: ^0.1.0
+  aws_ivs_realtime: ^0.1.1
 ```
 
 From Git:
