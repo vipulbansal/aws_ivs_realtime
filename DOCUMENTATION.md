@@ -179,6 +179,9 @@ Credential scope  → .../us-east-1/ivs/aws4_request
 | `join` | `Map`: `token` String, `publish` bool | Sets publish flag; if connected, **leaves** and succeeds; else requests permissions, then `Stage.join` | `success(null)` or `error(code, message, ...)` |
 | `leave` | — | `stage.leave()` on main handler | `success(null)` |
 | `setPublish` | `bool` | Updates `publishEnabled`, `refreshStrategy` | `success(null)` |
+| `refreshStageBindings` | — | Main thread: `stage?.refreshStrategy()`, `participantAdapter.notifyDataSetChanged()` | `success(null)` |
+| `setLocalStreamMuted` | `Map`: `micMuted` bool, `cameraMuted` bool | Main thread: mutes local `AudioLocalStageStream` / `ImageLocalStageStream` | `success(null)` |
+| `setShowParticipantStateOverlay` | `Map`: `visible` bool (default **false**) | Shows or hides per-tile debug strip (subscribe/mute/dB); when `false`, tiles are video-only | `success(null)` |
 
 **Android join semantics:** If `connectionState != DISCONNECTED`, the handler treats the call as **toggle leave** (matches sample-style UX bundled into one button on the Flutter side).
 
@@ -206,7 +209,7 @@ Declared permissions:
 - Implements **`FlutterPlugin`** + **`ActivityAware`**. On activity attach:  
   1. Builds **`IvsStageController(activity)`** (Activity reference for permissions and context).  
   2. Registers **`PlatformViewFactory`** id **`ivs_stage_view`** → **`IvsStageViewFactory`**.  
-  3. Registers **`MethodChannel("aws_ivs_realtime/stage")`** and **`EventChannel("aws_ivs_realtime/stage_events")`**; routes `join` / `leave` / `setPublish` / `refreshStageBindings` / `setLocalStreamMuted` as in section 6.  
+  3. Registers **`MethodChannel("aws_ivs_realtime/stage")`** and **`EventChannel("aws_ivs_realtime/stage_events")`**; routes `join` / `leave` / `setPublish` / `refreshStageBindings` / `setLocalStreamMuted` / `setShowParticipantStateOverlay` as in section 6.  
 - **`onDetachedFromActivity`** — `controller.release()` to free `Stage` and `DeviceDiscovery`.  
 - **Permissions** — `ActivityPluginBinding.addRequestPermissionsResultListener` forwards to `IvsStageController.onRequestPermissionsResult`.
 

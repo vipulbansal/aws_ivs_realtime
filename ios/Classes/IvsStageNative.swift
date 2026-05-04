@@ -27,6 +27,7 @@ final class StageParticipantModel {
 final class ParticipantIOSAdapter: NSObject, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
   private var participants: [StageParticipantModel] = []
   private weak var collectionView: UICollectionView?
+  private var showParticipantStateOverlay = false
 
   func attach(_ collectionView: UICollectionView) {
     collectionView.dataSource = self
@@ -80,6 +81,12 @@ final class ParticipantIOSAdapter: NSObject, UICollectionViewDataSource, UIColle
     }
   }
 
+  func setShowParticipantStateOverlay(_ show: Bool) {
+    guard showParticipantStateOverlay != show else { return }
+    showParticipantStateOverlay = show
+    notifyDataSetChanged()
+  }
+
   func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
     participants.count
   }
@@ -89,7 +96,7 @@ final class ParticipantIOSAdapter: NSObject, UICollectionViewDataSource, UIColle
   {
     let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ParticipantCell.reuseId, for: indexPath)
       as! ParticipantCell
-    cell.bind(participants[indexPath.item])
+    cell.bind(participants[indexPath.item], showStateOverlay: showParticipantStateOverlay)
     return cell
   }
 
@@ -124,7 +131,6 @@ private final class ParticipantCell: UICollectionViewCell {
   private let audioMutedLabel = UILabel()
   private let audioLevelLabel = UILabel()
   private var boundImageStream: IVSStageStream?
-  private var audioDeviceUrn: String?
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -158,7 +164,8 @@ private final class ParticipantCell: UICollectionViewCell {
 
   required init?(coder: NSCoder) { fatalError("init(coder:)") }
 
-  func bind(_ participant: StageParticipantModel) {
+  func bind(_ participant: StageParticipantModel, showStateOverlay: Bool) {
+    labelsStack.isHidden = !showStateOverlay
     let participantIdText: String =
       participant.isLocal
       ? "You (\(participant.participantId ?? "Disconnected"))"
@@ -209,17 +216,17 @@ private final class ParticipantCell: UICollectionViewCell {
     }
     previewContainer.setNeedsLayout()
 
-    let urn = (newAudioStream?.device as? IVSDevice)?.descriptor().urn
-    if urn != audioDeviceUrn {
-      if let audioDevice = newAudioStream?.device as? IVSAudioDevice {
+    if let audioDevice = newAudioStream?.device as? IVSAudioDevice {
+      if showStateOverlay {
         audioDevice.setStatsCallback { stats in
           DispatchQueue.main.async { [weak self] in
             self?.audioLevelLabel.text = "Audio Level: \(Int(stats.rms)) dB"
           }
         }
+      } else {
+        audioDevice.setStatsCallback { _ in }
       }
     }
-    audioDeviceUrn = urn
   }
 }
 
@@ -264,6 +271,12 @@ final class IvsStageController: NSObject, IVSStageStrategy, IVSStageRenderer, IV
         participantAdapter.updateLocalParticipant { $0.streams.removeAll() }
         participantAdapter.removeLocalParticipant()
       }
+    }
+  }
+
+  func setShowParticipantStateOverlay(_ show: Bool) {
+    mainQueue.async { [weak self] in
+      self?.participantAdapter.setShowParticipantStateOverlay(show)
     }
   }
 

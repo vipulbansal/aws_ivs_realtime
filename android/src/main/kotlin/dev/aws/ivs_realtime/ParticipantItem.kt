@@ -20,6 +20,7 @@ constructor(
 ) : FrameLayout(context, attrs, defStyleAttr, defStyleRes) {
 
     private lateinit var previewContainer: FrameLayout
+    private lateinit var metadataStrip: View
     private lateinit var textViewParticipantId: TextView
     private lateinit var textViewPublish: TextView
     private lateinit var textViewSubscribe: TextView
@@ -28,11 +29,11 @@ constructor(
     private lateinit var textViewAudioLevel: TextView
 
     private var boundVideoStream: StageStream? = null
-    private var audioStreamIdentity: String? = null
 
     override fun onFinishInflate() {
         super.onFinishInflate()
         previewContainer = findViewById(R.id.participant_preview_container)
+        metadataStrip = findViewById(R.id.participant_metadata_strip)
         textViewParticipantId = findViewById(R.id.participant_participant_id)
         textViewPublish = findViewById(R.id.participant_publishing)
         textViewSubscribe = findViewById(R.id.participant_subscribed)
@@ -41,7 +42,12 @@ constructor(
         textViewAudioLevel = findViewById(R.id.participant_audio_level)
     }
 
-    fun bind(participant: StageParticipant) {
+    fun bind(
+        participant: StageParticipant,
+        showStateOverlay: Boolean,
+    ) {
+        metadataStrip.visibility = if (showStateOverlay) View.VISIBLE else View.GONE
+
         val participantId =
             if (participant.isLocal) {
                 "You (${participant.participantId ?: "Disconnected"})"
@@ -93,20 +99,24 @@ constructor(
             }
         }
 
-        val audioKey = audioStream?.device?.descriptor?.urn
-        if (audioKey != audioStreamIdentity) {
-            when (audioStream) {
-                is AudioLocalStageStream ->
+        when (audioStream) {
+            is AudioLocalStageStream ->
+                if (showStateOverlay) {
                     audioStream.setStatsCallback { _, rms ->
                         textViewAudioLevel.text = "Audio Level: ${rms.roundToInt()} dB"
                     }
-                is AudioStageStream ->
+                } else {
+                    audioStream.setStatsCallback { _, _ -> }
+                }
+            is AudioStageStream ->
+                if (showStateOverlay) {
                     audioStream.setStatsCallback { _, rms ->
                         textViewAudioLevel.text = "Audio Level: ${rms.roundToInt()} dB"
                     }
-                else -> {}
-            }
+                } else {
+                    audioStream.setStatsCallback { _, _ -> }
+                }
+            else -> {}
         }
-        audioStreamIdentity = audioKey
     }
 }

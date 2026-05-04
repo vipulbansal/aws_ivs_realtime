@@ -26,7 +26,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   AmazonIVSBroadcast: b76ac7519bd77e4815f9e36eb08a70f4ec11488c
-  aws_ivs_realtime: 6ee97b8329d4a6c75749da57a0d66f93997f2a97
+  aws_ivs_realtime: 748abc773f0ebaa5982d211ed20edc045db3e9ff
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2
 

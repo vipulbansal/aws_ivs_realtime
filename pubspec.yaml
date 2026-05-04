@@ -2,7 +2,7 @@ name: aws_ivs_realtime
 description: >
   Flutter plugin for Amazon IVS Real-Time (Stages): native stage video grid,
   optional SigV4 control-plane helpers, and IVS Chat WebSocket session utilities.
-version: 0.1.2
+version: 0.1.3
 homepage: https://github.com/vipulbansal/aws_ivs_realtime
 repository: https://github.com/vipulbansal/aws_ivs_realtime
 issue_tracker: https://github.com/vipulbansal/aws_ivs_realtime/issues

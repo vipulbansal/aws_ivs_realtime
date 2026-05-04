@@ -67,6 +67,11 @@ public class AwsIvsRealtimePlugin: NSObject, FlutterPlugin {
         let cam = m?["cameraMuted"] as? Bool ?? false
         controller.setLocalStreamMuted(micMuted: mic, cameraMuted: cam)
         result(nil)
+      case "setShowParticipantStateOverlay":
+        let m = call.arguments as? [String: Any]
+        let visible = Self.channelBool(m?["visible"], defaultVal: false)
+        controller.setShowParticipantStateOverlay(visible)
+        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }

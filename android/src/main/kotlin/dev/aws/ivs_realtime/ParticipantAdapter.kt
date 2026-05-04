@@ -7,9 +7,16 @@ import androidx.recyclerview.widget.RecyclerView
 class ParticipantAdapter : RecyclerView.Adapter<ParticipantAdapter.ViewHolder>() {
 
     private val participants = mutableListOf<StageParticipant>()
+    private var showParticipantStateOverlay: Boolean = false
 
     init {
         setHasStableIds(true)
+    }
+
+    fun setShowParticipantStateOverlay(show: Boolean) {
+        if (showParticipantStateOverlay == show) return
+        showParticipantStateOverlay = show
+        notifyDataSetChanged()
     }
 
     fun ensureLocalParticipant() {
@@ -69,7 +76,7 @@ class ParticipantAdapter : RecyclerView.Adapter<ParticipantAdapter.ViewHolder>()
         participants[position].stableID.hashCode().toLong()
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.participantItem.bind(participants[position])
+        holder.participantItem.bind(participants[position], showParticipantStateOverlay)
     }
 
     class ViewHolder(

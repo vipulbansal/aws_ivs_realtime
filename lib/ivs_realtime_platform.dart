@@ -104,6 +104,21 @@ class IvsRealtimePlatform {
       );
     } on PlatformException catch (_) {}
   }
+
+  /// When `false` (default), native participant tiles show **only** the video preview
+  /// (no publish/subscribe/mute/dB strip). Set to `true` for the previous demo-style
+  /// overlay. Layout around the grid stays **Flutter** (`Stack`, buttons, etc.).
+  Future<void> setShowParticipantStateOverlay(bool visible) async {
+    if (!ivsNativeStageSupported) return;
+    try {
+      await _channel.invokeMethod<void>(
+        'setShowParticipantStateOverlay',
+        <String, Object?>{'visible': visible},
+      );
+    } on MissingPluginException {
+      // Older native builds without this channel method.
+    }
+  }
 }
 
 Future<void> _ensureMicrophonePermission() async {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Native participant tiles: **optional** per-tile state strip (subscribe/mute/audio dB). **Default off** for a cleaner production look; opt in from Dart with `IvsRealtimePlatform.setShowParticipantStateOverlay(true)` (example app enables it so the bundled demo matches earlier behavior). Method channel: `setShowParticipantStateOverlay` with `{ "visible": bool }`.
+
 ## 0.1.2
 
 - README: **Dart-only** layout/chrome around the stage (no native XML/Swift required for buttons/lists); **listStages → Flutter list → join existing stage** code snippet; **GitHub + clone + example `flutter run`**; prominent source table.

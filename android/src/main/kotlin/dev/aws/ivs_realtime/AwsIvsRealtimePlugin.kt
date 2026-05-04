@@ -96,6 +96,12 @@ class AwsIvsRealtimePlugin : FlutterPlugin, ActivityAware {
                             c.setLocalStreamMuted(micMuted = mic, cameraMuted = cam)
                             result.success(null)
                         }
+                        "setShowParticipantStateOverlay" -> {
+                            val m = call.arguments as? Map<*, *>
+                            val visible = channelBoolean(m?.get("visible"), default = false)
+                            c.setShowParticipantStateOverlay(visible)
+                            result.success(null)
+                        }
                         else -> result.notImplemented()
                     }
                 }

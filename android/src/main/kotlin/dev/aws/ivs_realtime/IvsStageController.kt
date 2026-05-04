@@ -153,6 +153,12 @@ class IvsStageController(
         }
     }
 
+    fun setShowParticipantStateOverlay(show: Boolean) {
+        mainHandler.post {
+            participantAdapter.setShowParticipantStateOverlay(show)
+        }
+    }
+
     fun setLocalStreamMuted(micMuted: Boolean, cameraMuted: Boolean) {
         mainHandler.post {
             for (stream in streams) {

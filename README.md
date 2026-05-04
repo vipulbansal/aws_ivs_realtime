@@ -346,7 +346,7 @@ From [pub.dev](https://pub.dev/packages/aws_ivs_realtime):
 
 ```yaml
 dependencies:
-  aws_ivs_realtime: ^0.1.2
+  aws_ivs_realtime: ^0.1.3
 ```
 
 From Git:
@@ -403,6 +403,8 @@ The **native participant grid** (video tiles inside [`AndroidView`](https://api.
 - Build **lists of stages**, **Join / Leave** buttons, host vs viewer toggles, or overlays (mute, end stream) — all in **Dart**, calling [`IvsLiveControlPlane`](lib/ivs_live_control_plane.dart) / [`IvsAwsSigV4ControlPlane`](lib/ivs_live_control_plane.dart) + [`IvsRealtimePlatform`](lib/ivs_realtime_platform.dart) as in the **Listing stages…** snippet under **App-only** earlier in this README.
 
 Treat the platform view like a **single embedded surface**: you control **everything outside and around it** with normal Flutter widgets. Changing **how each internal video tile** looks (pixel-level native skin) is outside typical app integration and is **not** required for custom product UI.
+
+By default, each native tile is **video only** (no subscribe/mute/dB strip). Call [`IvsRealtimePlatform.setShowParticipantStateOverlay`](lib/ivs_realtime_platform.dart) with `true` before `join` if you want the previous demo-style labels on the tiles.
 
 ---
 

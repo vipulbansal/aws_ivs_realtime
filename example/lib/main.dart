@@ -116,7 +116,8 @@ class _IvsDemoPageState extends State<IvsDemoPage> {
       final all = await _controlPlane.listStages(
         region: _region.text.trim(),
       );
-      final live = all.where(stageIsLiveDemo).toList();
+    //  final live = all.where(stageIsLiveDemo).toList();
+      final live = all;
       for (final s in live) {
         final arn = stageArn(s);
         if (arn == null || arn.isEmpty) continue;
@@ -459,6 +460,7 @@ class _IvsDemoPageState extends State<IvsDemoPage> {
         setState(() => _status = 'Mint a token first.');
         return;
       }
+      await _stage.setShowParticipantStateOverlay(true);
       await _stage.join(token: token, publish: _publish);
       setState(() => _status = 'Native stage toggled (join/leave).');
     } on UnsupportedError catch (e) {

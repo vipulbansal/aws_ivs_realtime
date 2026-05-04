@@ -146,6 +146,7 @@ class _FullScreenLivePageState extends State<FullScreenLivePage> {
       if (!mounted) return;
       await Future<void>.delayed(const Duration(milliseconds: 96));
       if (!mounted) return;
+      await _stage.setShowParticipantStateOverlay(true);
       await _stage.join(token: token, publish: widget.isHost);
       await _stage.refreshStageBindings();
       await Future<void>.delayed(const Duration(milliseconds: 120));
