@@ -7,6 +7,8 @@ Flutter plugin for **Amazon IVS Real-Time (Stages)** on **Android** and **iOS**,
 - IVS **Chat** WebSocket session ([`IvsChatSession`](lib/ivs_chat_session.dart))
 - Runtime **microphone/camera** requests via [`permission_handler`](https://pub.dev/packages/permission_handler)
 
+**Repository:** [github.com/vipulbansal/aws_ivs_realtime](https://github.com/vipulbansal/aws_ivs_realtime) · **Issues:** [github.com/vipulbansal/aws_ivs_realtime/issues](https://github.com/vipulbansal/aws_ivs_realtime/issues)
+
 ## Requirements
 
 | Platform | Minimum | Notes |
@@ -18,9 +20,20 @@ Native SDKs: Android Maven `ivs-broadcast` stages AAR (**1.41.0** in this repo);
 
 ## Install
 
+From [pub.dev](https://pub.dev/packages/aws_ivs_realtime) (when published):
+
 ```yaml
 dependencies:
   aws_ivs_realtime: ^0.1.0
+```
+
+From Git:
+
+```yaml
+dependencies:
+  aws_ivs_realtime:
+    git:
+      url: https://github.com/vipulbansal/aws_ivs_realtime.git
 ```
 
 ### Android
@@ -46,23 +59,19 @@ AndroidView(viewType: AwsIvsRealtimePlatformView.viewType, ...)
 // or UiKitView on iOS with the same viewType.
 ```
 
-See the **`example/`** app for the full lobby + full-screen live + chat demo (same behavior as the original project), including **frontend (SigV4)** vs **backend** control plane wiring.
+See the **`example/`** app for a full lobby, full-screen live, and chat demo, including **SigV4 (client-side)** vs **backend** control plane wiring.
 
-## GitHub repository name
+## Documentation
 
-- **Pub.dev package name** (in `pubspec.yaml`): **`aws_ivs_realtime`** — keep this; it is what consumers add in `dependencies:`.
-- **GitHub repo name:** Using **`aws_ivs_realtime`** (same as the package) matches pub.dev and avoids sounding like a throwaway sample-only repo.
-- **Local checkout folder** is expected to be named **`aws_ivs_realtime`** (same as the package); this does not change `pubspec.yaml` `name:`.
+For architecture, channel contract, token flow, and troubleshooting, see [DOCUMENTATION.md](DOCUMENTATION.md).
 
-After you create the GitHub repo, replace **`YOUR_GITHUB_USERNAME`** in `pubspec.yaml` and `ios/aws_ivs_realtime.podspec` with your GitHub user or organization name.
+## Contributing
 
-## Publishing
+Issues and pull requests are welcome in [vipulbansal/aws_ivs_realtime](https://github.com/vipulbansal/aws_ivs_realtime).
 
-With real `homepage` / `repository` / `issue_tracker` URLs (see above), from the package root:
+## Publishing (maintainers)
 
-```bash
-dart pub publish
-```
+To publish this package on [pub.dev](https://pub.dev), set `homepage`, `repository`, and `issue_tracker` in `pubspec.yaml` (and the podspec `homepage` if needed) to real URLs, then from the package root run `dart pub publish`. Do not ship IAM credentials in example or app code.
 
 ## License
 
